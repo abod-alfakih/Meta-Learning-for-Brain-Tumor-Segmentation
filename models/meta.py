@@ -1,3 +1,4 @@
+
 from torch.optim.sgd import SGD
 
 
@@ -18,27 +19,36 @@ class MetaSGD(SGD):
         else:
             current_module._parameters[name] = parameters
 
+
     def meta_step(self, grads):
         group = self.param_groups[0]
         weight_decay = group['weight_decay']
-        momentum = group['momentum']
-        dampening = group['dampening']
-        nesterov = group['nesterov']
+        # Check if 'momentum', 'dampening', and 'nesterov' are present in the optimizer's configuration.
+        momentum = group.get('momentum', 0.9)
+        dampening = group.get('dampening', 0)
+        nesterov = group.get('nesterov', False)
         lr = group['lr']
 
         for (name, parameter), grad in zip(self.net.named_parameters(), grads):
             parameter.detach_()
+
+            if grad is None:
+                continue
+
             if weight_decay != 0:
                 grad_wd = grad.add(parameter, alpha=weight_decay)
             else:
                 grad_wd = grad
+
             if momentum != 0 and 'momentum_buffer' in self.state[parameter]:
                 buffer = self.state[parameter]['momentum_buffer']
-                grad_b = buffer.mul(momentum).add(grad_wd, alpha=1-dampening)
+                grad_b = buffer.mul(momentum).add(grad_wd, alpha=1 - dampening)
             else:
                 grad_b = grad_wd
+
             if nesterov:
                 grad_n = grad_wd.add(grad_b, alpha=momentum)
             else:
                 grad_n = grad_b
+
             self.set_parameter(self.net, name, parameter.add(grad_n, alpha=-lr))
