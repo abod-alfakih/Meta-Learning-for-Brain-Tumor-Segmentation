@@ -92,13 +92,6 @@ def train(self, args, epoch, model,meta_net, train_loader, loss_fn, meta_loss_fn
 
             del pseudo_grads
 
-            # val_data = next(self.meta_dataloader_iter , None)
-            # if val_data is not None:
-            #     meta_inputs, meta_labels = val_data
-            # else:
-            #     cl_data_iterator = iter(self.meta_dataloader_iter)
-            #     val_data = next(cl_data_iterator, None)
-            #     meta_inputs, meta_labels = val_data
             try:
                 # Attempt to get the next batch; only capture the first two items (meta_inputs, meta_labels)
                 meta_inputs, meta_labels, *_ = next(self.meta_dataloader_iter)
