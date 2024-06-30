@@ -48,8 +48,6 @@ def parse_seg_args():
     parser.add_argument('--optim', type=str, default='adamw', help='optimizer',
         choices=['adam', 'adamw', 'sgd'])
 
-
-
     parser.add_argument('--clean_optim', type=str, default='adamw', help='optimizer',
                         choices=['adam', 'adamw', 'sgd'])
 
