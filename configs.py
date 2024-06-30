@@ -45,10 +45,10 @@ def parse_seg_args():
     parser.add_argument('--epochs', type=int, default=90)
     parser.add_argument('--batch_size', type=int, default=2)
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--optim', type=str, default='adamw', help='optimizer',
-        choices=['adam', 'adamw', 'sgd'])
+    parser.add_argument('--optim', type=str, default='sgd', help='optimizer',
+                        choices=['adam', 'adamw', 'sgd'])
 
-    parser.add_argument('--clean_optim', type=str, default='adamw', help='optimizer',
+    parser.add_argument('--clean_optim', type=str, default='adam', help='optimizer',
                         choices=['adam', 'adamw', 'sgd'])
 
     parser.add_argument('--beta1', default=0.9, type=float, metavar='M',
