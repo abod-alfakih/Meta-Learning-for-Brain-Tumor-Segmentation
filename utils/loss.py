@@ -135,60 +135,35 @@ class SoftDiceBCEWithLogitsLoss(nn.Module):
 
 
 
-# class meta_SoftDiceBCEWithLogitsLoss(nn.Module):
-#     def __init__(self, dice_smooth=1.0, reduction='none'):
-#         """Binary Cross Entropy & Soft Dice Loss
-#
-#         Seperately return BCEWithLogitsloss and Dice loss.
-#         BCEWithLogitsloss is more numerically stable than Sigmoid + BCE.
-#
-#         Args:
-#             dice_smooth (float): smoothing factor for Dice loss.
-#             reduction (str): specifies the reduction to apply to the output:
-#                              'none' | 'mean' | 'sum'. 'mean' is the default.
-#         """
-#         super(meta_SoftDiceBCEWithLogitsLoss, self).__init__()
-#
-#         self.bce = nn.BCEWithLogitsLoss(reduction=reduction)
-#         self.dsc = SoftDiceWithLogitsLoss(nonlinear='sigmoid', smooth=dice_smooth)
-#
-#     def forward(self, net_output: Tensor, target: Tensor):
-#         """Compute Binary Cross Entropy & Region Dice Loss
-#
-#         Args:
-#             net_output (Tensor): [B, C, ...] output tensor from the network.
-#             target (Tensor): [B, C, ...] ground truth tensor.
-#
-#         Returns:
-#             tuple: containing BCE loss and Dice loss.
-#         """
-#         bce_loss = self.bce(net_output, target)
-#         dsc_loss = self.dsc(net_output, target)
-#
-#         return bce_loss, dsc_loss
 
 class clean_SoftDiceBCEWithLogitsLoss(nn.Module):
-    def __init__(self, dice_smooth=1.0):
+    def __init__(self, dice_smooth=1.0, reduction='none'):
         """Binary Cross Entropy & Soft Dice Loss
 
         Seperately return BCEWithLogitsloss and Dice loss.
+        BCEWithLogitsloss is more numerically stable than Sigmoid + BCE.
 
-        BCEWithLogitsloss is more numerically stable than Sigmoid + BCE
+        Args:
+            dice_smooth (float): smoothing factor for Dice loss.
+            reduction (str): specifies the reduction to apply to the output:
+                             'none' | 'mean' | 'sum'. 'mean' is the default.
         """
         super(clean_SoftDiceBCEWithLogitsLoss, self).__init__()
 
-        self.bce = nn.BCEWithLogitsLoss()
+        self.bce = nn.BCEWithLogitsLoss(reduction=reduction)
         self.dsc = SoftDiceWithLogitsLoss(nonlinear='sigmoid', smooth=dice_smooth)
 
     def forward(self, net_output: Tensor, target: Tensor):
         """Compute Binary Cross Entropy & Region Dice Loss
 
         Args:
-            net_output (Tensor): [B, C, ...]
-            target (Tensor): [B, C, ...]
+            net_output (Tensor): [B, C, ...] output tensor from the network.
+            target (Tensor): [B, C, ...] ground truth tensor.
+
+        Returns:
+            tuple: containing BCE loss and Dice loss.
         """
         bce_loss = self.bce(net_output, target)
         dsc_loss = self.dsc(net_output, target)
 
         return bce_loss, dsc_loss
-
