@@ -341,15 +341,15 @@ class TrainModel:
 
             train(self,args, epoch, model,meta_net, train_loader, loss,meta_loss, optimizer,meta_optimizer, scheduler,meta_scheduler, scaler, scaler_2,writer, logger)
 
-            # if ((epoch + 1) % args.eval_freq == 0):
-            logger.info(f"==> Validation starts...")
-            # inference on validation set
-            val_metrics = infer(args, epoch, model,loss, val_loader, writer, logger, mode='val')
-
-            # model selection
-            val_leaderboard.update(epoch, val_metrics)
-            best_model.update({epoch: deepcopy(model.state_dict())})
-            logger.info(f"==> Validation ends...")
+            if (epoch >= 81):
+                logger.info(f"==> Validation starts...")
+                # inference on validation set
+                val_metrics = infer(args, epoch, model,loss, val_loader, writer, logger, mode='val')
+    
+                # model selection
+                val_leaderboard.update(epoch, val_metrics)
+                best_model.update({epoch: deepcopy(model.state_dict())})
+                logger.info(f"==> Validation ends...")
 
             torch.cuda.empty_cache()
         # ouput final leaderboard and its rank
