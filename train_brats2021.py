@@ -214,7 +214,6 @@ def main():
 
     val_leaderboard = LeaderboardBraTS()
     clean_train_iter = iter(clean_train_loader)
-
     for epoch in range(args.epochs):
         model.train()
         model_2.train()
