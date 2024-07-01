@@ -95,15 +95,21 @@ Next, you need to create a virtual environment for the project and activate it. 
 ### 5. Install the required dependencies
 Now, install all the dependencies listed in the Pipfile of the project. This step ensures that all the necessary libraries and packages are available for the project to run correctly.
 
-```pipenv install requests```
+```sh
+pipenv install requests
+```
 
 ### 6. Install PyTorch (GPU version for CUDA 11.1)
 Install PyTorch and related libraries suitable for your CUDA version (replace cu118 with your CUDA version if different):
-```pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118```
+```sh
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
 
 ### run the scripts
 Once the environment is set up and the dependencies are installed, you can run the project's scripts. For example, to start training the model, you would use:
-```pipenv run python train_brats2021.py```
+```sh
+pipenv run python train_brats2021.py
+```
 
 By following the previous steps, you ensure that:
 
