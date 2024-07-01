@@ -35,6 +35,8 @@ git commit -m "Initialize DVC"
 ### 2. Add Data to DVC
 Add your dataset to DVC:
 ```sh
+mkdir -p data/clean/brats2021
+mkdir -p data/noise/brats2021
 dvc add data/clean/brats2021
 dvc add data/noise/brats2021
 ```
