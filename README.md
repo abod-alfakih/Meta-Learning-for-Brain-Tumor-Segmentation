@@ -49,14 +49,13 @@ Configure Google Drive as your remote storage. You need the folder IDs from Goog
 
 Add remote storage for the clean data:
 ```sh
-dvc remote add -d clean_remote gdrive://<clean-folder-id>
+dvc remote add -d clean_remote gdrive://1mSpX0j8izVIid23kaqPomaE4H7LldxVv
 
 ```
 Add remote storage for the noise data:
 ```sh
-dvc remote add noise_remote gdrive://<noise-folder-id>
+dvc remote add noise_remote gdrive://1o1dQwQpX17Gc_y0aIMXWVtFi5t16W2sT
 ```
-
 ### 4. Configure Google Drive Remote Storage
 To retrieve the datasets, use:
 ```sh
