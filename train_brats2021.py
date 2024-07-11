@@ -355,7 +355,7 @@ def main():
 
 
     # validation
-        if (epoch >= 80):
+        if (epoch >= 81):
             logger.info(f"==> Validation starts...")
             # inference on validation set
             val_metrics = infer(args, epoch, model,loss_fn, val_loader, writer, logger, mode='val')
@@ -365,22 +365,22 @@ def main():
             best_model.update({epoch: deepcopy(model.state_dict())})
             logger.info(f"==> Validation ends...")
             val_leaderboard.update(epoch, val_metrics)
-                    if args.save_model:
-            logger.info("==> Saving...")
+            if args.save_model:
+                logger.info("==> Saving...")
 
-            # Save first model
-            state = {'model': model, 'epoch': epoch, 'args': args}
-            save_path = os.path.join(args.exp_dir, f"val_epoch_{epoch:02d}", 'model_1_best_ckpt.pth')
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            torch.save(state, save_path)
-            logger.info(f"==> Model 1 saved at {save_path}")
+                # Save first model
+                state = {'model': model, 'epoch': epoch, 'args': args}
+                save_path = os.path.join(args.exp_dir, f"val_epoch_{epoch:02d}", 'model_1_best_ckpt.pth')
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                torch.save(state, save_path)
+                logger.info(f"==> Model 1 saved at {save_path}")
 
-            # Save second model
-            state = {'model': model_2, 'epoch': epoch, 'args': args}
-            save_path = os.path.join(args.exp_dir, f"val_epoch_{epoch:02d}", 'model_2_best_ckpt.pth')
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            torch.save(state, save_path)
-            logger.info(f"==> Model 2 saved at {save_path}")
+                # Save second model
+                state = {'model': model_2, 'epoch': epoch, 'args': args}
+                save_path = os.path.join(args.exp_dir, f"val_epoch_{epoch:02d}", 'model_2_best_ckpt.pth')
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                torch.save(state, save_path)
+                logger.info(f"==> Model 2 saved at {save_path}")
 
 
         torch.cuda.empty_cache()
