@@ -353,7 +353,19 @@ def main():
         for key, value in train_tb.items():
             writer.add_scalar(f"train/{key}", value, epoch)
 
-        if args.save_model:
+
+    # validation
+        if (epoch >= 80):
+            logger.info(f"==> Validation starts...")
+            # inference on validation set
+            val_metrics = infer(args, epoch, model,loss_fn, val_loader, writer, logger, mode='val')
+
+            # model selection
+            val_leaderboard.update(epoch, val_metrics)
+            best_model.update({epoch: deepcopy(model.state_dict())})
+            logger.info(f"==> Validation ends...")
+            val_leaderboard.update(epoch, val_metrics)
+                    if args.save_model:
             logger.info("==> Saving...")
 
             # Save first model
@@ -369,18 +381,6 @@ def main():
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             torch.save(state, save_path)
             logger.info(f"==> Model 2 saved at {save_path}")
-    # validation
-        if (epoch >= 80):
-            logger.info(f"==> Validation starts...")
-            # inference on validation set
-            val_metrics = infer(args, epoch, model,loss_fn, val_loader, writer, logger, mode='val')
-
-            # model selection
-            val_leaderboard.update(epoch, val_metrics)
-            best_model.update({epoch: deepcopy(model.state_dict())})
-            logger.info(f"==> Validation ends...")
-            val_leaderboard.update(epoch, val_metrics)
-
 
 
         torch.cuda.empty_cache()
