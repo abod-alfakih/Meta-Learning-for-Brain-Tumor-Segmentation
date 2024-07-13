@@ -44,7 +44,7 @@ def cosine_similarity(grads1, grads2):
     return torch.nn.functional.cosine_similarity(grads1.unsqueeze(0), grads2.unsqueeze(0), dim=1)
 
 
-def infer(args, epoch, model: nn.Module, loss_fn, infer_loader, writer, logger, mode: str, save_pred: bool = False):
+def infer(args, epoch, model: nn.Module, infer_loader, writer, logger, mode: str, save_pred: bool = False):
     model.eval()
 
     batch_time = AverageMeter('Time', ':6.3f')
@@ -52,24 +52,18 @@ def infer(args, epoch, model: nn.Module, loss_fn, infer_loader, writer, logger, 
 
     # make save epoch folder
     folder_dir = mode if epoch is None else f"{mode}_epoch_{epoch:02d}"
-    save_path = os.path.join(args.exp_dir, folder_dir)
-    os.makedirs(save_path, exist_ok=True)  # Ensure the directory is created correctly
-
-    # Initialize text file for loss
-    loss_txt_path = os.path.join(args.exp_dir, f"{mode}_loss.txt")
-
-    total_loss = 0
-    num_batches = 0
+    save_path = join(args.exp_dir, folder_dir)
+    if not os.path.exists(save_path):
+        os.system(f"mkdir -p {save_path}")
 
     with torch.no_grad():
         end = time.time()
         for i, (image, label, _, brats_names) in enumerate(infer_loader):
             # get data
-            image, label = image.cuda(), label.cuda().float()  # Convert label to float for loss computation
+            image, label = image.cuda(), label.bool().cuda()
             bsz = image.size(0)
 
             # get seg map
-            # Forward pass to get segmentation map
             seg_map = sliding_window_inference(
                 inputs=image,
                 predictor=model,
@@ -78,30 +72,28 @@ def infer(args, epoch, model: nn.Module, loss_fn, infer_loader, writer, logger, 
                 overlap=args.patch_overlap,
                 mode=args.sliding_window_mode
             )
-            seg_map = seg_map > 0.5  # Convert to boolean after inference
+
+            # discrete
+            seg_map = torch.where(seg_map > 0.5, True, False)
+
+            # post-processing
             seg_map = brats_post_processing(seg_map)
 
-            # Compute your validation loss (assuming binary cross entropy loss here)
-            bce_loss_2, dsc_loss_2 = loss_fn(seg_map.float(), label)
-            valloss = bce_loss_2 + dsc_loss_2
-            total_loss += valloss.item()
-            num_batches += 1
+            # calc metric
+            dice = metrics.dice(seg_map, label)
+            hd95 = metrics.hd95(seg_map, label)
 
-            # Calculate evaluation metrics
-            dice = metrics.dice(seg_map, label.bool())
-            hd95 = metrics.hd95(seg_map, label.bool())
-
-            # Save predictions if specified
+            # output seg map
             if save_pred:
                 save_brats_nifti(seg_map, brats_names, mode, args.data_root, save_path)
 
-            # Update time meter and metrics meter
+            # logging
             torch.cuda.synchronize()
             batch_time.update(time.time() - end)
             case_metrics_meter.update(dice, hd95, brats_names, bsz)
 
-            # Log progress
-            if (i == 0) or ((i + 1) % args.print_freq == 0):
+            # monitor training progress
+            if (i == 0) or (i + 1) % args.print_freq == 0:
                 mean_metrics = case_metrics_meter.mean()
                 logger.info("\t".join([
                     f'{mode.capitalize()}: [{epoch}][{i + 1}/{len(infer_loader)}]', str(batch_time),
@@ -115,19 +107,16 @@ def infer(args, epoch, model: nn.Module, loss_fn, infer_loader, writer, logger, 
 
             end = time.time()
 
-        # Get validation metrics and log to tensorboard
-        infer_metrics = case_metrics_meter.mean()
-        for key, value in infer_metrics.items():
-            writer.add_scalar(f"{mode}/{key}", value, epoch)
+        # output case metric csv
+        case_metrics_meter.output(save_path)
 
-        # Compute average loss
-        avg_loss = total_loss / num_batches
+    # get validation metrics and log to tensorboard
+    infer_metrics = case_metrics_meter.mean()
+    for key, value in infer_metrics.items():
+        writer.add_scalar(f"{mode}/{key}", value, epoch)
 
-        # Append average loss to text file
-        with open(loss_txt_path, 'a') as f:
-            f.write(f"Epoch {epoch if epoch is not None else 'None'} - Average {mode} Loss: {avg_loss:.4f}\n")
+    return infer_metrics
 
-        return infer_metrics
 
 def save_loss_history(loss_dict, exp_dir):
     """
@@ -146,12 +135,22 @@ def save_loss_history(loss_dict, exp_dir):
         with open(file_path, 'w') as f:
             for value in loss_values:
                 f.write(f"{value}\n")
+import torch.nn.functional as F
 
+def get_grad_cos_sim(grad1, grad2, sep_ind):
+    """Computes cosine similarity of gradients after flattening tensors."""
+    grad1_flat = torch.cat([g.view(-1) for g in grad1[:sep_ind]], dim=0)
+    grad2_flat = torch.cat([g.view(-1) for g in grad2[:sep_ind]], dim=0)
+    cos_sim = F.cosine_similarity(grad1_flat.unsqueeze(0), grad2_flat.unsqueeze(0))
+    return F.cosine_similarity(grad1_flat.unsqueeze(0), grad2_flat.unsqueeze(0))
 def save_learning_rate_history(learning_rate_history, exp_dir):
     lr_file_path = os.path.join(exp_dir, "learning_rate_history.txt")
     with open(lr_file_path, "a") as f:
         for lr in learning_rate_history:
             f.write(f"{lr}\n")
+
+from itertools import zip_longest
+
 def main():
 
     args = parse_seg_args()
@@ -210,10 +209,10 @@ def main():
     loss_history_2 = []
     loss_history_meta = []
     learning_rate_history = []  # Initialize an empty list to store learning rates
+    clean_train_iter = iter(clean_train_loader)
 
 
     val_leaderboard = LeaderboardBraTS()
-    clean_train_iter = iter(clean_train_loader)
 
     for epoch in range(args.epochs):
         model.train()
@@ -222,105 +221,120 @@ def main():
         batch_time = AverageMeter('Time', ':6.3f')
         bce_meter = AverageMeter('BCE', ':.4f')
         dsc_meter = AverageMeter('Dice', ':.4f')
-        loss_meter = AverageMeter('Loss', ':.4f')
         loss_meter_2= AverageMeter('Loss_2', ':.4f')
-        loss_meter_3= AverageMeter('Loss_2', ':.4f')
+        loss_meter_3 = AverageMeter('Loss', ':.4f')
+
 
         progress = ProgressMeter(
             len(train_loader),
-            [batch_time, data_time, bce_meter, dsc_meter, loss_meter,loss_meter_2,loss_meter_3],
+            [batch_time, data_time, bce_meter, dsc_meter,loss_meter_2,loss_meter_3],
             prefix=f"Train: [{epoch}]")
         end = time.time()
+        priv_layers = 6  # defines how many layers are task-specific
+        priv_ind = -1 * priv_layers  # index for task-specific layers
 
-        for i, (image, label, _, _) in enumerate(train_loader):
-            min_scale = 128
+        combined_updates = 0
+
+        # for i, (main_batch, aux_batch) in enumerate(zip_longest(train_loader, clean_train_loader)):
+        for i, (images_main, labels_main, _, _) in enumerate(train_loader):
             try:
                 # Attempt to get the next batch; only capture the first two items (meta_inputs, meta_labels)
-                meta_inputs, meta_labels, *_ = next(clean_train_iter)
+                images_aux, labels_aux, *_ = next(clean_train_iter)
             except StopIteration:
                 # Reinitialize the iterator if the end of the dataset is reached
                 clean_train_iter = iter(clean_train_loader)
-                meta_inputs, meta_labels, *_ = next(clean_train_iter)
+                images_aux, labels_aux, *_ = next(clean_train_iter)
 
+            min_scale = 128
+            bsz = images_main.size(0)
+            bsz_2 = images_aux.size(0)
             # init
-            image, label = image.cuda(), label.float().cuda()
-            meta_inputs, meta_labels = meta_inputs.cuda(), meta_labels.float().cuda()
+            images_main, labels_main = images_main.cuda(), labels_main.float().cuda()
+            images_aux, labels_aux = images_aux.cuda(), labels_aux.float().cuda()
+            # Zero the parameter gradients
+            optimizer.zero_grad()
+            optimizer_2.zero_grad()
 
-            bsz = image.size(0)
-            data_time.update(time.time() - end)
+            # Compute losses
 
             with autocast((args.amp) and (scaler is not None)):
             # TODO: adapt to deep supervision
+                outputs_main = model(images_main)
+                outputs_aux = model_2(images_aux)
 
-            # Forward pass for model 1
-                preds = model(image)
-                preds = preds[0] if isinstance(preds, list) else preds
-                label = label[0] if isinstance(label, list) else label
+                outputs_main = outputs_main[0] if isinstance(outputs_main, list) else outputs_main
+                labels_main = labels_main[0] if isinstance(labels_main, list) else labels_main
 
-                bce_loss, dsc_loss = loss_fn(preds, label)
-                loss = bce_loss + dsc_loss
+                bce_loss, dsc_loss= loss_fn(outputs_main, labels_main)
+                loss_main = bce_loss + dsc_loss
 
-                # Forward pass for model 2
-                preds_2 = model_2(meta_inputs)
-                preds_2 = preds_2[0] if isinstance(preds_2, list) else preds_2
-                meta_labels = meta_labels[0] if isinstance(meta_labels, list) else meta_labels
+                outputs_aux = outputs_aux[0] if isinstance(outputs_aux, list) else outputs_aux
+                labels_aux = labels_aux[0] if isinstance(labels_aux, list) else labels_aux
 
-                bce_loss_2, dsc_loss_2 = meta_loss(preds_2, meta_labels)
-                loss_2 = bce_loss_2 + dsc_loss_2
+                bce_loss_2, dsc_loss_2 = meta_loss(outputs_aux, labels_aux)
+                loss_aux = bce_loss_2 + dsc_loss_2
 
-            optimizer.zero_grad()
-            loss.backward(retain_graph=True)
+
+            # Compute gradients for shared and private parameters of both tasks
+            loss_main.backward(retain_graph=True)
+            grads_main = [param.grad.clone() for param in model.parameters() if param.grad is not None]
+            model_params = list(model.parameters())
+            model_2_params = list(model_2.parameters())
+            model3 =model_2_params
+
+            loss_aux.backward(retain_graph=True)
+
+            grads_aux = [param.grad.clone() for param in model_2.parameters() if param.grad is not None]
+
             optimizer_2.zero_grad()
-            loss_2.backward(retain_graph=True)
+            params_to_update = model_params[priv_ind:]
+            params_2_to_update = model_2_params[priv_ind:]
+            # Assuming model_params and model_2_params are lists or tensors containing model parameters
+            for idx, (param_main, param_aux) in enumerate (zip(params_to_update, params_2_to_update)):
+                model_params[idx].grad = grads_main[idx]
+                model_2_params[idx].grad = grads_aux[idx]
 
-            # Compute similarity and total loss
-            grads_model_1 = get_gradients(model)
-            grads_model_2 = get_gradients(model_2)
-            if grads_model_1 is not None and grads_model_2 is not None:
-                similarity = cosine_similarity(grads_model_1, grads_model_2)
-                if similarity >= 0:
-                    total_loss = loss +loss_2
+
+            optimizer.step()
+            optimizer_2.step()
+
+            assert len(grads_main) == len(grads_aux), "Gradients length mismatch"
+            params_shared_to_update = model_params[:priv_ind]
+            params_2_shared_to_update = model_2_params[:priv_ind]
+            # Update shared parameters based on cosine similarity
+            if get_grad_cos_sim(grads_main, grads_aux, priv_ind) >= 0.5:
+                print(1)
+                grad_sum = [gm + ga for (gm, ga) in zip(params_shared_to_update, params_2_shared_to_update)]
+                # grad_sum = [gm + ga for (gm, ga) in zip(grads_main[:priv_ind], grads_aux[:priv_ind])]
+                for idx in range(len(grad_sum)):
+                    model_params[idx].grad = grad_sum[idx]
+                    model_2_params[idx].grad = grad_sum[idx]
                 else:
-                    total_loss = loss
-            else:
-                total_loss = loss
+                    for idx, (param1, param2) in enumerate(zip(params_shared_to_update, params_2_shared_to_update)):
+                        model_params[idx].grad = grads_main[idx]
+                        model_2_params[idx].grad = grads_aux[idx]
+            optimizer.step()
 
-            # Backward pass and optimization for model 1
-            optimizer.zero_grad()
-            if args.amp and scaler is not None:
-                scaler.scale(total_loss).backward()
-                if args.clip_grad:
-                    scaler.unscale_(optimizer)  # enable grad clipping
-                    nn.utils.clip_grad_norm_(model.parameters(), 10)
-                scaler.step(optimizer)
-                scaler.update()
-
-            else:
-                total_loss.backward()
-                if args.clip_grad:
-                    nn.utils.clip_grad_norm_(model.parameters(), 10)
-                optimizer.step()
-
+            optimizer_2.step()
             # logging
             torch.cuda.synchronize()
             bce_meter.update(bce_loss.item(), bsz)
             dsc_meter.update(dsc_loss.item(), bsz)
-            loss_meter.update(total_loss.item(), bsz)
-            loss_meter_2.update(loss.item(), bsz)
-            loss_meter_3.update(loss_2.item(), bsz)
+
+            loss_meter_2.update(loss_main.item(), bsz)
+            loss_meter_3.update(loss_aux.item(), bsz_2)
 
             batch_time.update(time.time() - end)
 
+            # monitor training progress
             # monitor training progress
             if (i == 0) or (i + 1) % args.print_freq == 0:
                 progress.display(i + 1, logger)
 
             end = time.time()
-        avg_loss = loss_meter.avg
         avg_loss_2 = loss_meter_2.avg
         avg_loss_3 = loss_meter_3.avg
 
-        loss_history.append(avg_loss)
         loss_history_2.append(avg_loss_2)
         loss_history_meta.append(avg_loss_3)
         current_lr = optimizer.state_dict()['param_groups'][0]['lr']
@@ -346,7 +360,6 @@ def main():
         train_tb = {
             'bce_loss': bce_meter.avg,
             'dsc_loss': dsc_meter.avg,
-            'total_loss': loss_meter.avg,
             'lr': optimizer.state_dict()['param_groups'][0]['lr'],
         }
 
@@ -355,7 +368,7 @@ def main():
 
 
     # validation
-        if (epoch >= 81):
+        if (epoch >= 80):
             logger.info(f"==> Validation starts...")
             # inference on validation set
             val_metrics = infer(args, epoch, model,loss_fn, val_loader, writer, logger, mode='val')
