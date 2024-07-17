@@ -38,7 +38,7 @@ def save_learning_rate_history(learning_rate_history, exp_dir):
     with open(lr_file_path, "a") as f:
         for lr in learning_rate_history:
             f.write(f"{lr}\n")
-def train(self, args, epoch, model, meta_net, train_loader, loss_fn, meta_loss_fn, optimizer, meta_optimizer, scheduler,
+def train(self, args, epoch, model,meta_net, train_loader, loss_fn, meta_loss_fn, optimizer, meta_optimizer, scheduler,
           meta_scheduler, scaler,scaler_2, writer, logger):
     data_time = AverageMeter('Data', ':6.3f')
     batch_time = AverageMeter('Time', ':6.3f')
@@ -58,29 +58,22 @@ def train(self, args, epoch, model, meta_net, train_loader, loss_fn, meta_loss_f
         image, label = image.cuda(), label.float().cuda()
         bsz = image.size(0)
         data_time.update(time.time() - end)
-        
-        
         if (i + 1) % 1 == 0:
-            #########################################
             pseudo_net = get_unet(args).cuda()
             if args.data_parallel:
                 pseudo_net = torch.nn.parallel.DistributedDataParallel.cuda()
             pseudo_net.load_state_dict(model.state_dict())
             pseudo_net.train()
-            #########################################
-            # Using torchopt
-            
-            
-            #######################################
-            pseudo_outputs = pseudo_net(image)
-            if isinstance(pseudo_outputs, list):
-                pseudo_outputs = pseudo_outputs[0]
-            if isinstance(label, list):
-                label = label[0]
-            bce_loss, dsc_loss = meta_loss_fn(pseudo_outputs, label)
-            pseudo_loss_vector = bce_loss + dsc_loss
-            pseudo_loss_vector_reshape = torch.reshape(pseudo_loss_vector, (-1, 1))
-            pseudo_weight = meta_net(pseudo_loss_vector_reshape.data)
+            with autocast((args.amp) and (scaler is not None)):
+                pseudo_outputs = pseudo_net(image)
+                if isinstance(pseudo_outputs, list):
+                    pseudo_outputs = pseudo_outputs[0]
+                if isinstance(label, list):
+                    label = label[0]
+                bce_loss, dsc_loss = meta_loss_fn(pseudo_outputs, label)
+                pseudo_loss_vector = bce_loss + dsc_loss
+                pseudo_loss_vector_reshape = torch.reshape(pseudo_loss_vector, (-1, 1))
+                pseudo_weight = meta_net(pseudo_loss_vector_reshape.data)
             pseudo_loss = torch.mean(pseudo_weight * pseudo_loss_vector_reshape)
 
             # Check pseudo_loss for being a scalar
@@ -98,7 +91,6 @@ def train(self, args, epoch, model, meta_net, train_loader, loss_fn, meta_loss_f
             pseudo_optimizer.meta_step(pseudo_grads)
 
             del pseudo_grads
-            torch.cuda.empty_cache()
 
             try:
                 # Attempt to get the next batch; only capture the first two items (meta_inputs, meta_labels)
@@ -306,7 +298,7 @@ class TrainModel:
         train_cases, val_cases, test_cases = load_cases_split(args.cases_split)
         train_loader = brats2021.get_train_loader(args, train_cases)
         val_loader   = brats2021.get_infer_loader(args, val_cases)
-        test_loader  = brats2021.get_infer_loader(args, test_cases) # what is the test loader?
+        test_loader  = brats2021.get_infer_loader(args, test_cases)
 
         train_clean_cases, val_clean_cases, test_clean_cases = load_cases_split(args.clean_cases_split)
         self.meta_dataloader = brats2021.get_clean_train_loader(args, train_clean_cases)
@@ -349,7 +341,7 @@ class TrainModel:
 
             train(self,args, epoch, model,meta_net, train_loader, loss,meta_loss, optimizer,meta_optimizer, scheduler,meta_scheduler, scaler, scaler_2,writer, logger)
 
-            if (epoch >= 0):
+            if (epoch >= 81):
                 logger.info(f"==> Validation starts...")
                 # inference on validation set
                 val_metrics = infer(args, epoch, model,loss, val_loader, writer, logger, mode='val')
@@ -364,9 +356,11 @@ class TrainModel:
         val_leaderboard.output(args.exp_dir)
 
         # test
+        logger.info("==> Testing starts...")
         best_epoch = val_leaderboard.get_best_epoch()
         best_model = best_model[best_epoch]
         model.load_state_dict(best_model)
+        infer(args, best_epoch, model, test_loader, writer, logger, mode='test', save_pred=args.save_pred)
 
         # save the best model on validation set
         if args.save_model:
@@ -375,8 +369,6 @@ class TrainModel:
             torch.save(state, os.path.join(
                 args.exp_dir, f"test_epoch_{best_epoch:02d}", f'best_ckpt.pth'))
 
-        logger.info("==> Testing starts...")            
-        infer(args, best_epoch, model, loss, test_loader, writer, logger, mode='test', save_pred=args.save_pred)
         logger.info("==> Testing ends...")
 
 

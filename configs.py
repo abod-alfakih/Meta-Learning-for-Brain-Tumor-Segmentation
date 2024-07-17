@@ -10,7 +10,7 @@ def parse_seg_args():
     parser.add_argument('--comment', type=str, default='', help='save comment')
     parser.add_argument('--gpus', nargs='+', type=int)
     parser.add_argument('--seed', type=int, default=1000)
-    parser.add_argument('--num_workers', type=int, default=12, help='number of workers to load data')
+    parser.add_argument('--num_workers', type=int, default=6, help='number of workers to load data')
     parser.add_argument('--amp', action='store_true', help='using mixed precision')
     parser.add_argument('--data_parallel', action='store_true',default = False, help='using data parallel')
 
@@ -28,20 +28,22 @@ def parse_seg_args():
 
     # data
 
+
+
     parser.add_argument('--input_channels', '--n_views', type=int, default=4,
         help="#channels of input data, equal to #encoders in multiencoder unet and" \
              "#view in multiview contrastive learning")
 
     # data augmentation
-    parser.add_argument('--patch_size', type=int, default=96, help='patch size')
+    parser.add_argument('--patch_size', type=int, default=128, help='patch size')
     parser.add_argument('--pos_ratio', type=float, default=1.0,
         help="prob of picking positive patch (center in foreground)")
     parser.add_argument('--neg_ratio', type=float, default=1.0,
         help="prob of picking negative patch (center in background)")
 
     # optimize
-    parser.add_argument('--epochs', type=int, default=1)
-    parser.add_argument('--batch_size', type=int, default=8)
+    parser.add_argument('--epochs', type=int, default=90)
+    parser.add_argument('--batch_size', type=int, default=2)
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--optim', type=str, default='sgd', help='optimizer',
                         choices=['adam', 'adamw', 'sgd'])
@@ -71,8 +73,7 @@ def parse_seg_args():
         choices=['unet', 'multiencoder_unet', 'unetr'], help='Architecuture of the U-Net')
     parser.add_argument('--block', type=str, default='plain', choices=['plain', 'res'],
         help='Type of convolution block')
-    parser.add_argument('--channels_list', nargs='+', type=int, default= [8,16,32,32,32,64], 
-                        #[32, 64, 128, 128, 128,256],
+    parser.add_argument('--channels_list', nargs='+', type=int, default=[32, 64, 128, 128, 128,256],
         help="#channels of every levels of decoder in a top-down order")
     parser.add_argument('--kernel_size', type=int, default=3, help="size of conv kernels")
     parser.add_argument('--dropout_prob', type=float, default=0.0, help="prob of dropout")
@@ -81,7 +82,7 @@ def parse_seg_args():
     parser.add_argument('--num_classes', type=int, default=3, help='number of predicted classs')
     parser.add_argument('--weight_path', type=str, default= None,
         help='path to pretrained encoder or decoder weight, None for train-from-scratch')
-    parser.add_argument('--deep_supervision',default=False, action='store_true',
+    parser.add_argument('--deep_supervision',default=True, action='store_true',
         help='whether use deep supervision')
     parser.add_argument('--ds_layer', type=int, default=4,
         help='last n layer to use deep supervision')
