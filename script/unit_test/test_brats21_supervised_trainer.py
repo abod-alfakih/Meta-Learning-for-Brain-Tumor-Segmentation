@@ -11,9 +11,9 @@ from src.utils.vis import save_overlay_nifti
 # Retrieve the BRATS21 dataset from
 
 args = {
-    "data_root": "data/noise",
+    "data_root": "data/clean",
     "dataset": "brats2021",
-    "cases_split": "data/split/brats2021_split_fold5.csv",
+    "cases_split": "data/split/clean",
     "batch_size": 8,
     "num_workers": 4,
     "patch_size": 96,

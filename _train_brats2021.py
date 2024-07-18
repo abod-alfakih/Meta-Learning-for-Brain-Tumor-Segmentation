@@ -11,7 +11,7 @@ from monai.inferers import sliding_window_inference
 from torch.cuda.amp import GradScaler, autocast
 from models.unet import *
 import utils.metrics as metrics
-from configs import parse_seg_args
+from _configs import parse_seg_args
 from dataset import brats2021
 from models import get_unet
 
