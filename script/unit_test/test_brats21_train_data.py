@@ -2,7 +2,7 @@ import autorootcwd
 import src.data
 import torch, time, os
 from src.utils.registry import DATASET_REGISTRY
-
+from src.utils.vis import save_overlay_nifti
 # Retrieve the BRATS21 dataset from
 
 args = {
@@ -38,7 +38,7 @@ print("==============================================")
 
 # Iterate over the data loader
 print('---------- For train loader ---------------')
-
+ii = 0
 for batch in train_loader:
     images, labels, file_path = (
         batch["image"],
@@ -49,6 +49,10 @@ for batch in train_loader:
     print(f"Images size: {images.size()}, dtype: {images.dtype}")
     print(f"Labels size: {labels.size()}, dtype: {labels.dtype}")
 
+    if ii == 0: 
+        save_overlay_nifti(images, labels, file_path='script/unit_test/demo_train_data')
+
+
     # Extract the middle part of the file path
     print("files in mini-batch")
     for path in file_path:
@@ -57,6 +61,7 @@ for batch in train_loader:
 
 # Iterate over the data loader
 print('---------- now for validation loader ---------------')
+ii = 0
 for batch in val_loader:
     images, labels, file_path = (
         batch["image"],
@@ -66,6 +71,9 @@ for batch in val_loader:
     print(f"Loaded batch with {len(images)} images")
     print(f"Images size: {images.size()}, dtype: {images.dtype}")
     print(f"Labels size: {labels.size()}, dtype: {labels.dtype}")
+    
+    if ii == 0: 
+        save_overlay_nifti(images, labels, file_path='script/unit_test/img/demo_val_data')
 
     # Extract the middle part of the file path
     print("files in mini-batch")

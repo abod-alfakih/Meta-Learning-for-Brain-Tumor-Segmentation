@@ -200,7 +200,7 @@ class BRaTS21TrainDataset:
             self.train_cases_dict, transforms=self.train_transforms
         )
         val_lmdb_dset = self._create_lmdb_dataset(
-            self.val_cases_dict, transforms=self.infer_transforms
+            self.val_cases_dict, transforms=self.val_transforms
         )
 
         self.train_loader = self.get_dataloader(

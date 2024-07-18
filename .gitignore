@@ -1,3 +1,5 @@
 data/*
 exp/*
 *.pyc
+*.nii.gz
+*.nii
