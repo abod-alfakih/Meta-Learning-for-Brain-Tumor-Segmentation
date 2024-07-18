@@ -14,4 +14,4 @@ exp/*
 # |                                                            |
 # | this will ignore the content but not the director itself.  |
 # +------------------------------------------------------------+
-!/**/.gitkeep
+!*.gitkeep
