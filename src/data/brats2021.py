@@ -26,8 +26,10 @@ def load_cases_split(split_path: str):
     train_cases = sorted(sorted(list(cases_name[cases_split == "train"])))
     val_cases = sorted(list(cases_name[cases_split == "val"]))
     test_cases = sorted(list(cases_name[cases_split == "test"]))
+    meta_cases = sorted(list(cases_name[cases_split == "meta_train"]))
 
-    return train_cases, val_cases, test_cases
+
+    return train_cases, val_cases, test_cases ,meta_cases
 
 
 class RobustZScoreNormalization(MapTransform):
@@ -211,7 +213,7 @@ class BRaTS21TrainDataset:
         )
 
     def _prepare_cases(self, cases_split):
-        train_cases, val_cases, test_cases = load_cases_split(cases_split)
+        train_cases, val_cases, test_cases, meta_cases= load_cases_split(cases_split)
 
         def create_case_dict(case):
             return {
@@ -240,6 +242,7 @@ class BRaTS21TrainDataset:
         train_cases_dict = []
         val_cases_dict = []
         test_cases_dict = []
+        meta_cases_dict = []
 
         for case in train_cases:
             case_dict = create_case_dict(case)
@@ -256,7 +259,12 @@ class BRaTS21TrainDataset:
             validate_case_dict(case_dict)
             test_cases_dict.append(case_dict)
 
-        return train_cases_dict, val_cases_dict, test_cases_dict
+        for case in meta_cases:
+            case_dict = create_case_dict(case)
+            validate_case_dict(case_dict)
+            meta_cases_dict.append(case_dict)
+
+        return train_cases_dict, val_cases_dict, test_cases_dict , meta_cases_dict
 
     def _create_lmdb_dataset(self, cases_dict, transforms):
         lmdb_init_start = time.time()
