@@ -54,10 +54,10 @@ def process_f32(img_dir):
 
 
 def nib_load(file_name):
-    file_name
     if not os.path.exists(file_name):
         print(file_name)
         raise FileNotFoundError
+        print(file_name)
     proxy = nib.load(file_name)
     data = proxy.get_fdata()
     proxy.uncache()

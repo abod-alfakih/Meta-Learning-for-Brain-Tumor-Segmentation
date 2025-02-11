@@ -118,11 +118,14 @@ class LeaderboardBraTS(object):
 def load_cases_split(split_path:str):
     df = pd.read_csv(split_path)
     cases_name, cases_split = np.array(df['name']), np.array(df['split'])
-    train_cases = sorted(sorted(list(cases_name[cases_split == 'train'])))
+    train_cases = sorted(list(cases_name[cases_split == 'train']))
     val_cases   = sorted(list(cases_name[cases_split == 'val']))
     test_cases  = sorted(list(cases_name[cases_split == 'test']))
+    meta_cases  = sorted(list(cases_name[cases_split == 'meta_train']))
 
-    return train_cases, val_cases, test_cases
+
+    return train_cases, val_cases, test_cases,meta_cases
+
 
 
 def nib_affine(path):

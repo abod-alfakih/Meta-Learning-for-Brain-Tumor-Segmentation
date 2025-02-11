@@ -168,7 +168,9 @@ def get_train_loader(args, case_names: list):
         transforms=train_transforms)
 
     return DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
-                      drop_last=False, num_workers=args.num_workers, pin_memory=True,worker_init_fn=seed_worker,generator=g)
+                      drop_last=False, num_workers=args.num_workers, pin_memory=True,worker_init_fn=seed_worker,generator=g,persistent_workers=True)
+
+
 
 
 def get_infer_loader(args, case_names: list):
@@ -180,7 +182,7 @@ def get_infer_loader(args, case_names: list):
         transforms=infer_transform)
 
     return DataLoader(infer_dataset, batch_size=args.infer_batch_size, shuffle=False,
-                      drop_last=False, num_workers=args.num_workers, pin_memory=True,worker_init_fn=seed_worker,generator=g)
+                      drop_last=False, num_workers=args.num_workers, pin_memory=True,worker_init_fn=seed_worker,generator=g,persistent_workers=True)
 
 
 
@@ -205,4 +207,4 @@ def get_clean_train_loader(args, case_names: list):
         transforms=train_transforms)
 
     return DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
-                      drop_last=False, num_workers=args.num_workers, pin_memory=True,worker_init_fn=seed_worker,generator=g)
+                      drop_last=False, num_workers=args.num_workers, pin_memory=True,worker_init_fn=seed_worker,generator=g,persistent_workers=True)
